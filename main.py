@@ -27,3 +27,23 @@ import pandas as pd
 
 cwd = os.getcwd()
 print(cwd)
+
+path = cwd + '/data/elementarySchool'
+file_list = glob.glob(os.path.join(path, "*.csv"))
+for file in file_list:
+    file_name = os.path.basename(file)
+    print(file_name)
+
+# 아래 파일은 성별에 따른 학생수 정보가 부재
+# student2022 = pd.read_csv(file_list[9])
+# print(student2022.head())
+# colList = student2022.columns
+# for col in colList:
+#     print(col)
+
+# use 2022ElementarySchool.csv
+student2022 = pd.read_csv(file_list[4])
+print(student2022.head())
+colList = student2022.columns
+for col in colList:
+    print(col)
