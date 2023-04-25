@@ -1,31 +1,19 @@
-# This is a sample Python script.
-
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
-
 ##################################################
 # import modules
 
 import os
-import glob
 import pandas as pd
+import requests
+# from tqdm import tqdm
 import geopandas as gpd
+from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
+from pyproj import CRS
+
 
 # Set the max_columns option to None
 pd.set_option('display.max_columns', None)
+
 
 ##################################################
 # set working direcoty
@@ -33,119 +21,311 @@ pd.set_option('display.max_columns', None)
 cwd = os.getcwd()
 # print(cwd)
 
-base_path = "/Users/jaehojung/PycharmProjects/genderSortingAcrossElementarySchoolInKorea"
+base_path = "/Users/USER/PycharmProjects/genderSortingAcrossElementarySchoolInKorea"
+path_engineered_data = os.path.join(base_path, r'engineered_data')
 
+if not os.path.exists(path_engineered_data):
+   os.makedirs(path_engineered_data)
 
+'''
 ##################################################
-# read elementary school data file
+# open files
 
 file_name = "data/elementarySchool/2022ElementarySchool.csv"
 file_path = os.path.join(base_path, file_name)
-studentInfo2022 = pd.read_csv(file_path)
-# print(studentInfo2022)
-# for col in studentInfo2022.columns:
-#     print(col)
-# print(studentInfo2022['정보공시 학교코드'].head())
-# print(studentInfo2022['시도교육청'].unique())
-studentInfo2022_subset = studentInfo2022[studentInfo2022['시도교육청'].str.contains('서울특별시교육청')]
+ElementarySchoolStudentInfo2022 = pd.read_csv(file_path, encoding='utf-8')
+for col in ElementarySchoolStudentInfo2022 .columns:
+    print(col)
+# print(ElementarySchoolStudentInfo2022['시도교육청'].unique())
+ElementarySchoolStudentInfo2022_subset = ElementarySchoolStudentInfo2022[ElementarySchoolStudentInfo2022['시도교육청'].str.contains('서울특별시교육청')]
 
-# ##################################################
-# read elementary school info file
-# source: https://schoolinfo.go.kr/ng/go/pnnggo_a01_l2.do 학교기본정보
 
 file_name = "data/elementarySchool/2022년도_학교기본정보(초등).csv"
 file_path = os.path.join(base_path, file_name)
-schoolInfo2022 = pd.read_csv(file_path)
-print(schoolInfo2022.head())
-for col in schoolInfo2022.columns:
-    print(col)
-# print(schoolInfo2022['시도교육청'].head())
-schoolInfo2022_subset = schoolInfo2022[schoolInfo2022['시도교육청'].str.contains('서울특별시교육청')]
+ElementarySchoolInfo2022 = pd.read_csv(file_name, encoding='utf-8')
+ElementarySchoolInfo2022_subset = ElementarySchoolInfo2022[ElementarySchoolInfo2022['시도교육청'].str.contains('서울특별시교육청')]
 
-# remove "번지."
-schoolInfo2022_subset['상세주소내역'] = schoolInfo2022_subset['상세주소내역'].str.replace('번지.', '')
-schoolInfo2022_subset['소재지지번주소'] = schoolInfo2022_subset['주소내역'] + " " + schoolInfo2022_subset['상세주소내역']
-# print(schoolInfo2022_subset['소재지지번주소'].head())
-
-# ##################################################
-# # read elementary school coordinate info
-#
-# file_name = "data/elementarySchool/shoolCoordinates_20230322.csv"
-# file_path = os.path.join(base_path, file_name)
-# schoolCoordinateInfo = pd.read_csv(file_path, encoding='cp949')
-# # print(schoolCoordinateInfo.head())
-# for col in schoolCoordinateInfo.columns:
-#     print(col)
-# # print(schoolCoordinateInfo['학교급구분'].unique())
-# # print(schoolCoordinateInfo['시도교육청명'].unique())
-#
-# schoolCoordinateInfo_elementarty = schoolCoordinateInfo[schoolCoordinateInfo['학교급구분'].str.contains('초등학교')]
-# schoolCoordinateInfo_subset = schoolCoordinateInfo[schoolCoordinateInfo['시도교육청명'].str.contains('서울특별시교육청')]
 
 ##################################################
-# combine three data set
+# merge two data sets
 
-merged_df = pd.merge(studentInfo2022_subset, schoolInfo2022_subset, on='정보공시 학교코드', how='inner', indicator=True, suffixes=('', '_new'))
-# print(merged_df.head())
-# print(merged_df.columns)
-
-file_name = "merged_df.csv"
-file_path = os.path.join(base_path, file_name)
-merged_df.to_csv(file_path)
+merged_df = pd.merge(ElementarySchoolStudentInfo2022_subset, ElementarySchoolInfo2022_subset, on='정보공시 학교코드', how='inner', indicator=True, suffixes=('', '_new'))
+merged_df = merged_df[merged_df.columns.drop(list(merged_df.filter(regex='_new')))]
 
 
+##################################################
+# add coordinate info
 
-# Convert the pandas dataframe to a GeoDataFrame with geometry
-geometry = gpd.points_from_xy(merged_df['경도'], merged_df['위도'])
-gdf = gpd.GeoDataFrame(merged_df, geometry=geometry)
-# Set the CRS of the GeoDataFrame
-gdf.crs = "EPSG:5168"
+# correct the incorrect addresses
+merged_df.loc[merged_df['학교명'] == '서울등양초등학교', '학교도로명 주소'] = '서울특별시 강서구 강서로56나길 140'
+merged_df.loc[merged_df['학교명'] == '서울미아초등학교', '학교도로명 주소'] = '서울특별시 성북구 삼양로 77'
+merged_df.loc[merged_df['학교명'] == '서울언주초등학교', '학교도로명 주소'] = '서울특별시 강남구 남부순환로363길 19'
+merged_df.loc[merged_df['학교명'] == '서울수서초등학교', '학교도로명 주소'] = '서울특별시 강남구 광평로51길 46'
+merged_df.loc[merged_df['학교명'] == '서울우면초등학교', '학교도로명 주소'] = '서울특별시 서초구 태봉로 59'
+merged_df.loc[merged_df['학교명'] == '서울신남초등학교', '학교도로명 주소'] = '서울특별시 양천구 신월동 587'
+merged_df.loc[merged_df['학교명'] == '서울장평초등학교', '학교도로명 주소'] = '서울특별시 동대문구 답십리로69길 27'
 
-# gdf.to_csv('path/to/your/data.csv', index=False)
+
+# NAVER Cloud info
+# Replace with your own Naver Cloud API client ID and secret key
+CLIENT_ID = ''
+CLIENT_SECRET = ''
+
+# Function to get the coordinates for a given address
+def get_coordinate(address):
+    headers = {'X-NCP-APIGW-API-KEY-ID': CLIENT_ID, 'X-NCP-APIGW-API-KEY': CLIENT_SECRET}
+    url = f'https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query={address}'
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    if data['status'] == 'OK' and len(data['addresses']) > 0:
+        # print ("[%s] Url Request Success" % datetime.datetime.now())
+        longitude = data['addresses'][0]['x']
+        latitude = data['addresses'][0]['y']
+        return longitude, latitude
+    else:
+        return None, None
+
+
+# Get the coordinates for each address using the get_coordinate function
+merged_df['longitude'], merged_df['latitude'] = zip(*merged_df['학교도로명 주소'].apply(get_coordinate))
+
+
+# Save the updated DataFrame to a new CSV file
+# tqdm.pandas()
+
+file_path = os.path.join(base_path + '/engineered_data', 'merged_df_with_coordinates.csv')
+merged_df.to_csv(file_path, index=False, encoding='utf-8')
+# merged_df.to_csv('merged_df_with_coordinates.csv', index=False, encoding='cp949')
+
 
 ##################################################
 # read school district shp file
 
 file_name = "data/elementarySchooldistrict/초등학교통학구역.shp"
 file_path = os.path.join(base_path, file_name)
-shpFile = gpd.read_file(file_path)
-# print(shpFile)
-# print(shpFile.crs)
-
-# shpFile_Columns = shpFile.columns
-# for column in shpFile_Columns:
-#     print(column)
+shapefile = gpd.read_file(file_path)
+# print(shapefile.columns)
 
 columns_to_drop = ['CRE_DT', 'UPD_DT', 'BASE_DT']
-shpFile_subset = shpFile.drop(columns_to_drop, axis=1)
-# print(shpFile_subset.columns)
+shapefile_subset = shapefile.drop(columns_to_drop, axis=1)
+print(shapefile_subset.columns)
+subset = shapefile_subset[shapefile_subset['EDU_UP_NM'] == "서울특별시교육청"]
 
-shpFile_subset.plot()
 
-# gdf = gdf.to_crs(shpFile.crs)
+##################################################
+# merge shapefile with point data set(merged_df, or "merged_df_with_coordinates.csv")
+merged_df_with_coordinates = merged_df
 
-# print(gdf.head())
-# print(shpFile_subset.head())
+# convert merged_df_with_coordinates to a GeoDataFrame
+points = gpd.GeoDataFrame(merged_df_with_coordinates,
+                          geometry=gpd.points_from_xy(merged_df_with_coordinates.longitude,
+                                                      merged_df_with_coordinates.latitude))
 
-# Perform a spatial join to associate each point with the containing polygon
-joined = gpd.sjoin(gdf, shpFile, how='left', op='within')
-# print(joined.head())
+# infer CRS from latitude and longitude columns using pyproj
+points.crs = CRS.from_user_input('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs').to_wkt()
 
-# # Plot the points in the GeoDataFrame
-# fig, ax = plt.subplots()
-# ax.set_aspect('equal')
-# gdf.plot(ax=ax, markersize=1, color='red')
-#
-# # Plot the polygons in the shapefile
-# fig, ax = plt.subplots()
-# ax.set_aspect('equal')
-# shpFile.plot(ax=ax, color='blue')
-#
-# Show the plots
+# convert subset to a GeoDataFrame
+polygons = gpd.GeoDataFrame(subset)
+
+# reproject points to match the CRS of polygons
+points = points.to_crs(polygons.crs)
+
+# perform spatial join
+joined = gpd.sjoin(points, polygons, op='within')
+
+
+##################################################
+# plot points and polygon (simple overlay)
+
+fig, ax = plt.subplots(figsize=(10,10))
+
+polygons.plot(ax=ax, alpha=0.5, edgecolor='black')
+joined.plot(ax=ax, color='red', markersize=5)
+
+plt.show()
+
+
+# count the number of points for each polygon
+counts = joined.index.value_counts()
+
+# select polygons with more than one point
+multi_point_polygons = counts[counts > 1].index.tolist()
+
+# print the list of polygons with more than one point
+print(multi_point_polygons)
+
+
+##################################################
+# fill polygons using points info
+
+# check crs of points and polygons
+print(points.crs)
+print(polygons.crs)
+
+# adjust crs for spatial join
+new_crs = polygons.crs
+gdf = points.to_crs(new_crs)
+
+# spatial join using subset(shape file of school district)
+map_df = subset
+joined_df = gpd.sjoin(map_df, gdf, how='inner', op='contains')
+
+# save as shp file
+# file_path = os.path.join(base_path + '/engineered_data', 'elementarySchoolGenderSorting.shp')
+# joined_df.to_file(file_path)
+
+# save as geojson file
+# file_path = os.path.join(base_path + '/engineered_data', "elementarySchoolInfoForVisualization.geojson")
+# joined_df.to_file(file_path, driver='GeoJSON')
+
+##################################################
+# fill polygons using point info: using number of boys in the first grade
+
+fig, ax = plt.subplots(figsize=(10, 10))
+joined_df.plot(column='1학년(남)', cmap='Blues', ax=ax, legend=True)
+plt.show()
+
+
+# generate boys/ratio info of each grade
+grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
+
+for grade in grades:
+    total_column = f"{grade}(합계)"
+    columns_to_sum = [f"{grade}(남)", f"{grade}(여)"]
+    joined_df[total_column] = joined_df[columns_to_sum].sum(axis=1)
+
+grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
+genders = ['남']
+
+for grade in grades:
+    for gender in genders:
+        column_name = f"{grade}({gender})"
+        column_name_denominator = f"{grade}(합계)"
+        joined_df[column_name + '비율'] = joined_df[column_name]/joined_df[column_name_denominator]
+
+columns = joined_df.columns
+for column in columns:
+  print(column)
+
+
+# # plot boys ratio
+# fig, ax = plt.subplots(figsize=(10, 10))
+# joined_df.plot(column='1학년(남)비율', cmap='Blues', ax=ax, legend=True)
 # plt.show()
 
+# # set title and axis labels
+# ax.set_title('1학년(남) 비율', fontdict={'fontsize': 20})
+# ax.set_axis_off()
 
-# merged = shapefile.merge(gdf, on='column_with_common_values', how='left')
-# print(merged.head())
+# # save the figure as a PNG image
+# plt.savefig('map.png', dpi=300)
+'''
 
-#next
+##################################################
+# open files
+
+file_name = "engineered_data/merged_df_with_coordinates.csv"
+file_path = os.path.join(base_path, file_name)
+ElementarySchool2022 = pd.read_csv(file_path, encoding='utf-8')
+
+
+##################################################
+# read school district shp file
+
+file_name = "data/elementarySchooldistrict/초등학교통학구역.shp"
+file_path = os.path.join(base_path, file_name)
+shapefile = gpd.read_file(file_path)
+# print(shapefile.columns)
+
+columns_to_drop = ['CRE_DT', 'UPD_DT', 'BASE_DT']
+shapefile_subset = shapefile.drop(columns_to_drop, axis=1)
+print(shapefile_subset.columns)
+subset = shapefile_subset[shapefile_subset['EDU_UP_NM'] == "서울특별시교육청"]
+
+
+##################################################
+# merge shapefile with point data set(merged_df, or "merged_df_with_coordinates.csv")
+merged_df_with_coordinates = ElementarySchool2022
+
+# convert merged_df_with_coordinates to a GeoDataFrame
+points = gpd.GeoDataFrame(merged_df_with_coordinates,
+                          geometry=gpd.points_from_xy(merged_df_with_coordinates.longitude,
+                                                      merged_df_with_coordinates.latitude))
+
+# infer CRS from latitude and longitude columns using pyproj
+points.crs = CRS.from_user_input('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs').to_wkt()
+
+# convert subset to a GeoDataFrame
+polygons = gpd.GeoDataFrame(subset)
+
+# reproject points to match the CRS of polygons
+points = points.to_crs(polygons.crs)
+
+# perform spatial join
+joined = gpd.sjoin(points, polygons, op='within')
+
+
+# check crs of points and polygons
+print(points.crs)
+print(polygons.crs)
+
+# adjust crs for spatial join
+new_crs = polygons.crs
+gdf = points.to_crs(new_crs)
+
+# spatial join using subset(shape file of school district)
+map_df = subset
+joined_df = gpd.sjoin(map_df, gdf, how='inner', op='contains')
+
+
+##################################################
+# # plot points and polygon (simple overlay)
+# fig, ax = plt.subplots(figsize=(10,10))
+#
+# polygons.plot(ax=ax, alpha=0.5, edgecolor='black')
+# joined.plot(ax=ax, color='red', markersize=5)
+#
+# plt.show()
+
+# count the number of points for each polygon
+counts = joined.index.value_counts()
+
+# select polygons with more than one point
+multi_point_polygons = counts[counts > 1].index.tolist()
+
+# print the list of polygons with more than one point
+print(multi_point_polygons)
+
+# generate boys/ratio info of each grade
+grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
+
+for grade in grades:
+    total_column = f"{grade}(합계)"
+    columns_to_sum = [f"{grade}(남)", f"{grade}(여)"]
+    joined_df[total_column] = joined_df[columns_to_sum].sum(axis=1)
+
+grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
+genders = ['남']
+
+for grade in grades:
+    for gender in genders:
+        column_name = f"{grade}({gender})"
+        column_name_denominator = f"{grade}(합계)"
+        joined_df[column_name + '비율'] = joined_df[column_name]/joined_df[column_name_denominator]
+
+# # plot boys ratio
+# fig, ax = plt.subplots(figsize=(10, 10))
+# joined_df.plot(column='1학년(남)비율', cmap='Blues', ax=ax, legend=True)
+# plt.show()
+
+for grade in grades:
+    for gender in genders:
+        plot_name = f"{grade}(남)비율"
+        fig, ax = plt.subplots(figsize=(10, 10))
+        joined_df.plot(column=plot_name, cmap='Blues', ax=ax, legend=True)
+        plt.savefig(f'{plot_name}.png', dpi=300)
+
+
+
+
+
