@@ -120,7 +120,9 @@ columns_to_drop = ['CRE_DT', 'UPD_DT', 'BASE_DT']
 shpFile_subset = shpFile.drop(columns_to_drop, axis=1)
 # print(shpFile_subset.columns)
 
-gdf = gdf.to_crs(shpFile.crs)
+shpFile_subset.plot()
+
+# gdf = gdf.to_crs(shpFile.crs)
 
 # print(gdf.head())
 # print(shpFile_subset.head())
