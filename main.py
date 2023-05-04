@@ -9,6 +9,8 @@ import geopandas as gpd
 from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
 from pyproj import CRS
+from matplotlib.colors import LinearSegmentedColormap
+import seaborn as sns
 
 
 # Set the max_columns option to None
@@ -318,14 +320,68 @@ for grade in grades:
 # joined_df.plot(column='1학년(남)비율', cmap='Blues', ax=ax, legend=True)
 # plt.show()
 
-for grade in grades:
-    for gender in genders:
-        plot_name = f"{grade}(남)비율"
-        fig, ax = plt.subplots(figsize=(10, 10))
-        joined_df.plot(column=plot_name, cmap='Blues', ax=ax, legend=True)
-        plt.savefig(f'{plot_name}.png', dpi=300)
+# for grade in grades:
+#     for gender in genders:
+#         plot_name = f"{grade}(남)비율"
+#         fig, ax = plt.subplots(figsize=(10, 10))
+#         joined_df.plot(column=plot_name, cmap='Blues', ax=ax, legend=True)
+#         plt.savefig(f'{plot_name}.png', dpi=300)
+
+# # create a custom colormap
+# cmap = LinearSegmentedColormap.from_list('custom', [(0, 'red'), (0.5, 'white'), (1, 'blue')])
+#
+# # loop through grades and genders and plot the data
+# for grade in grades:
+#     for gender in genders:
+#         plot_name = f"{grade}({gender})비율"
+#         fig, ax = plt.subplots(figsize=(10, 10))
+#         vmin, vmax = joined_df[plot_name].min(), joined_df[plot_name].max()
+#         norm = plt.Normalize(vmin=vmin, vmax=vmax)
+#         joined_df.plot(column=plot_name, cmap=cmap, ax=ax, norm=norm, legend=True)
+#         plt.savefig(f'{plot_name}.png', dpi=100)
+
+
+# sns.set_theme(style="whitegrid")
+# sns.histplot(data=joined_df, x="1학년(남)비율", kde=True)
+#
+# # create the plot
+# fig, ax = plt.subplots()
+# ax.hist(joined_df["1학년(남)비율"], bins=30, density=True)
+#
+# # set labels and title
+# ax.set_xlabel('Value')
+# ax.set_ylabel('Density')
+# ax.set_title('Normal Distribution')
+#
+# # save the plot to a file
+# plt.savefig('distribution.png', dpi=100)
+
+# Set the font family to one that supports Hangul characters
+plt.rcParams['font.family'] = 'NanumGothic'
+
+sns.set_style("whitegrid")
+
+# create sample data
+data = sns.load_dataset("tips")
+
+# create distribution plot
+sns.kdeplot(data=joined_df["1학년(남)비율"], fill=True)
+
+# add histogram line
+sns.histplot(data=joined_df["1학년(남)비율"], color="grey", alpha=.2, kde=True)
+
+# save plot
+plt.savefig("distribution_plot_with_histogram.png", dpi=300)
 
 
 
+# create histogram plot
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.histplot(data=joined_df["1학년(남)비율"], ax=ax, color="grey", alpha=.2, kde=True)
 
-
+# add KDE plot on twin Axes
+ax2 = ax.twinx()
+sns.kdeplot(data=joined_df["1학년(남)비율"], shade=True, ax=ax2, color='red')
+ax2.set_ylabel('KDE', color='red')
+ax2.tick_params(axis='y', labelcolor='red')
+plt.show()
