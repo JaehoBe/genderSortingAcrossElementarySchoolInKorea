@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from pyproj import CRS
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
+from collections import Counter
 
 plt.rcParams['font.family'] = 'NanumGothic'
 plt.rcParams['font.size'] = 12
@@ -285,19 +286,26 @@ joined_df = gpd.sjoin(map_df, gdf, how='inner', op='contains')
 # for col in joined_df_columns:
 #     print(col)
 
-print(joined_df['설립구분'].unique())
-print(joined_df['학교특성'].unique())
-print(joined_df['설립유형'].unique())
-print(joined_df['주야구분'].unique())
+# print(joined_df['설립구분'].unique())
+# print(joined_df['학교특성'].unique())
+# print(joined_df['설립유형'].unique())
+# print(joined_df['주야구분'].unique())
 
-joined_df['private'] = joined_df['print(joined_df['설립구분'].unique())'].apply(lambda x: 1 if x == '사립' else 0)
-joined_df['private'] = joined_df['print(joined_df['설립구분'].unique())'].apply(lambda x: 1 if x == '사립' else 0)
-joined_df['private'] = joined_df['print(joined_df['설립구분'].unique())'].apply(lambda x: 1 if x == '사립' else 0)
-joined_df['private'] = joined_df['print(joined_df['설립구분'].unique())'].apply(lambda x: 1 if x == '사립' else 0)
+# combinations = list(zip(joined_df['설립구분'], joined_df['설립유형']))
+# count = Counter(combinations)
+# for combination, num in count.items():
+#     print(f"{combination}: {num}")
 
-# joined_df = joined_df.drop(columns=['학교급코드', '제외여부', '제외사유', '학교특성', '_merge', '전화번호', '팩스번호'])
-# print(joined_df['private'].unique())
-#
+joined_df['private'] = joined_df['설립구분'].apply(lambda x: 1 if x == '사립' else 0)
+joined_df['annexedToSchool'] = joined_df['설립유형'].apply(lambda x: 0 if x == '단설' else 1)
+
+# combinations = list(zip(joined_df['private'], joined_df['annexedToSchool']))
+# count = Counter(combinations)
+# for combination, num in count.items():
+#     print(f"{combination}: {num}")
+
+joined_df = joined_df.drop(columns=['학교급코드', '제외여부', '제외사유', '학교특성', '_merge', '전화번호', '팩스번호'])
+
 # grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
 # genders = ['남']
 #
@@ -307,54 +315,133 @@ joined_df['private'] = joined_df['print(joined_df['설립구분'].unique())'].ap
 # girl_ratio = joined_df[girl_cols].describe()
 #
 #
-# # Define a mapping of Korean column names to English column names
-# columns_mapping = {
-#     "OBJECTID": "object_id",
-#     "HAKGUDO_ID": "hakgudo_id",
-#     "HAKGUDO_NM": "hakgudo_name",
-#     "HAKGUDO_GB": "hakgudo_type",
-#     "SD_CD": "sd_code",
-#     "SGG_CD": "sgg_code",
-#     "EDU_UP_CD": "edu_up_code",
-#     "EDU_UP_NM": "edu_up_name",
-#     "EDU_CD": "edu_code",
-#     "EDU_NM": "edu_name",
-#     "geometry": "geometry",
-#     "index_right": "index_right",
-#     "시도교육청": "sido_edu_office",
-#     "지역교육청": "local_edu_office",
-#     "지역": "region",
-#     "정보공시 학교코드": "school_code",
-#     "학교명": "school_name",
-#     "설립구분": "foundation_type",
-#     "1학년(남)": "1st_grade_male",
-#     "1학년(여)": "1st_grade_female",
-#     "2학년(남)": "2nd_grade_male",
-#     "2학년(여)": "2nd_grade_female",
-#     "3학년(남)": "3rd_grade_male",
-#     "3학년(여)": "3rd_grade_female",
-#     "4학년(남)": "4th_grade_male",
-#     "4학년(여)": "4th_grade_female",
-#     "5학년(남)": "5th_grade_male",
-#     "5학년(여)": "5th_grade_female",
-#     "6학년(남)": "6th_grade_male",
-#     "6학년(여)": "6th_grade_female",
-#     "특수학급(남)": "special_class_male",
-#     "특수학급(여)": "special_class_female",
-#     "순회학급(남)": "mobile_class_male",
-#     "순회학급(여)": "mobile_class_female",
-#     "계(남)": "total_male",
-#     "계(여)": "total_female",
-#     "총계": "total",
-#     "설립유형": "foundation_type",
-#     "주야구분": "day_night_division",
-#     "개교기념일": "foundation_anniversary",
-#     "설립일": "foundation_date",
-#     "법정동코드": "legal_dong_code",
-#     "주소내역": "address_detail",
-#     "상세주소내역": "address_detail2",
-#     "우편번호": "zip_code",
-#     "학교도로명 우편번호": "road_address_zip_code"}
+# Define a mapping of Korean column names to English column names
+columns_mapping = {
+    "OBJECTID": "object_id",
+    "HAKGUDO_ID": "hakgudo_id",
+    "HAKGUDO_NM": "hakgudo_name",
+    "HAKGUDO_GB": "hakgudo_type",
+    "SD_CD": "sd_code",
+    "SGG_CD": "sgg_code",
+    "EDU_UP_CD": "edu_up_code",
+    "EDU_UP_NM": "edu_up_name",
+    "EDU_CD": "edu_code",
+    "EDU_NM": "edu_name",
+    "geometry": "geometry",
+    "index_right": "index_right",
+    "시도교육청": "sido_edu_office",
+    "지역교육청": "local_edu_office",
+    "지역": "region",
+    "정보공시 학교코드": "school_code",
+    "학교명": "school_name",
+    "설립구분": "foundation_type",
+    "1학년(남)": "1st_grade_male",
+    "1학년(여)": "1st_grade_female",
+    "2학년(남)": "2nd_grade_male",
+    "2학년(여)": "2nd_grade_female",
+    "3학년(남)": "3rd_grade_male",
+    "3학년(여)": "3rd_grade_female",
+    "4학년(남)": "4th_grade_male",
+    "4학년(여)": "4th_grade_female",
+    "5학년(남)": "5th_grade_male",
+    "5학년(여)": "5th_grade_female",
+    "6학년(남)": "6th_grade_male",
+    "6학년(여)": "6th_grade_female",
+    "특수학급(남)": "special_class_male",
+    "특수학급(여)": "special_class_female",
+    "순회학급(남)": "mobile_class_male",
+    "순회학급(여)": "mobile_class_female",
+    "계(남)": "total_male",
+    "계(여)": "total_female",
+    "총계": "total",
+    "설립유형": "foundation_type",
+    "주야구분": "day_night_division",
+    "개교기념일": "foundation_anniversary",
+    "설립일": "foundation_date",
+    "법정동코드": "legal_dong_code",
+    "주소내역": "address_detail",
+    "상세주소내역": "address_detail2",
+    "우편번호": "zip_code",
+    "학교도로명 우편번호": "road_address_zip_code"}
+
+# Rename columns based on the columns_mapping dictionary
+joined_df = joined_df.rename(columns=columns_mapping)
+
+
+# ##################################################
+# # # plot points and polygon (simple overlay)
+
+# # Pivot the data to create a matrix of the number of boys and girls by grade and school
+# pivot_data = joined_df.pivot_table(index='School', columns='Grade', values=['Boys', 'Girls'])
+#
+# # Create a heatmap using Seaborn
+# sns.heatmap(pivot_data)
+
+
+# ##################################################
+# # # basic statistics
+
+# Compute the total number of students by school and gender
+# total_students = joined_df.groupby(['school_code']).sum()[['total_male', 'total_female']]
+total_students = joined_df.groupby(['school_code']).sum(numeric_only=True)[['total_male', 'total_female']]
+
+
+# Compute the average number of students by grade and gender
+grades = ['1st_grade_male', '2nd_grade_male', '3rd_grade_male', '4th_grade_male', '5th_grade_male', '6th_grade_male']
+male_averages = joined_df[grades].mean()
+female_averages = joined_df[[col.replace('_male', '_female') for col in grades]].mean()
+average_students = pd.concat([male_averages, female_averages], axis=1)
+average_students.columns = ['Male', 'Female']
+
+# Compute the percentage of boys and girls in each grade
+grades = ['1st_grade', '2nd_grade', '3rd_grade', '4th_grade', '5th_grade', '6th_grade']
+boys = joined_df[[grade+'_male' for grade in grades]].sum()
+girls = joined_df[[grade+'_female' for grade in grades]].sum()
+boy_ratio = boys / (boys + girls)
+girl_ratio = girls / (boys + girls)
+grade_ratio = pd.concat([boy_ratio, girl_ratio], axis=1)
+grade_ratio.columns = ['Male', 'Female']
+
+# Compute the correlation matrix between the number of boys and girls in each grade
+grade_counts = joined_df[[grade+'_male' for grade in grades + ['total']]].sum()
+correlation_matrix = joined_df[[grade+'_male' for grade in grades]].corrwith(joined_df[[grade+'_female' for grade in grades]])
+
+# Print the results
+print('Total number of students by school and gender:\n', total_students)
+print('Average number of students by grade and gender:\n', average_students)
+print('Percentage of boys and girls in each grade:\n', grade_ratio)
+print('Correlation matrix between the number of boys and girls in each grade:\n', correlation_matrix)
+
+
+total_students = joined_df[['total_male', 'total_female']].sum().sum()
+total_boys = joined_df['total_male'].sum()
+total_girls = total_students - total_boys
+boy_ratio = total_boys / total_students
+girl_ratio = total_girls / total_students
+print(f"Total number of students: {total_students}")
+print(f"Total number of boys: {total_boys}")
+print(f"Total number of girls: {total_girls}")
+print(f"Boy ratio: {boy_ratio:.2f}")
+print(f"Girl ratio: {girl_ratio:.2f}")
+
+
+# ##################################################
+# number of birth and boy/girl ratio of korea
+data = {
+    'year': ['2010년', '2011년', '2012년', '2013년', '2014년',
+            '2015년', '2016년', '2017년', '2018년', '2019년', '2020년'],
+    'numberOfBirth': [470171, 471265, 484550, 436455, 435435,
+                   438420, 406243, 357771, 326822, 302676, 272337],
+    'boyGirlRatio': [106.9, 105.7, 105.7, 105.3, 105.3,
+                   105.3, 105.0, 106.3, 105.4, 105.5, 104.8]
+}
+
+korean_births_df = pd.DataFrame(data)
+print(korean_births_df)
+
+
+# ##################################################
+# number of birth and boy/girl ratio of Seoul
 
 
 # ##################################################
