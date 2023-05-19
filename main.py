@@ -22,7 +22,7 @@ pd.set_option('display.max_columns', None)
 
 
 ##################################################
-# set working direcoty
+# set working directory
 
 cwd = os.getcwd()
 # print(cwd)
@@ -33,17 +33,42 @@ path_engineered_data = os.path.join(base_path, r'engineered_data')
 if not os.path.exists(path_engineered_data):
    os.makedirs(path_engineered_data)
 
+
+'''
+# ##################################################
+# number of birth, boy/girl ratio of korea
+data = {
+    'year': ['2010', '2011', '2012', '2013', '2014',
+            '2015', '2016', '2017', '2018', '2019', '2020'],
+    'sKoreaBirthTotal': [470171, 471265, 484550, 436455, 435435,
+                   438420, 406243, 357771, 326822, 302676, 272337],
+    'sKoreaBoyGirlRatio': [106.9, 105.7, 105.7, 105.3, 105.3,
+                   105.3, 105.0, 106.3, 105.4, 105.5, 104.8]
+}
+
+korean_births_df = pd.DataFrame(data)
+print(korean_births_df)
+
+# korean_births_df['sKoreaBoy'] = korean_births_df['sKoreaBoyGirlRatio']/100 * korean_births_df['sKoreaBirthTotal']
+# print(korean_births_df['sKoreaBoy'])
+
+# korean_births_df['sKoreaBoyGirlRatio'] = [korean_births_df['sKoreaBoyGirlRatio']/(100 + korean_births_df['sKoreaBoyGirlRatio']) ] * 100
+korean_births_df['sKoreaBoyGirlRatio'] = (korean_births_df['numberOfBoys'] / korean_births_df['numberOfGirls']) * 100
+
+print(korean_births_df['sKoreaBoyGirlRatio'])
+
+
 ##################################################
 # open files: seoul birth data
 file_name = "data/seoulBirthData/출산순위별+출생_20230508155221.csv"
 file_path = os.path.join(base_path, file_name)
 df = pd.read_csv(file_path, encoding='utf-8', header=[0,1,2])
 
-print(df.head())
+# print(df.head())
 
 # Split the data into df1 and df2
-df1 = data.iloc[:, :2]
-df2 = data.iloc[:, 2:]
+df1 = df.iloc[:, :2]
+df2 = df.iloc[:, 2:]
 
 df2.columns = df2.columns.droplevel(level=1)
 
@@ -92,31 +117,29 @@ female_cols = df2.filter(like='female').columns
 df2_female = df2[female_cols]
 seoul_female = df2.loc['SeoulTotal', female_cols]
 
-print(seoul_total)
-print(seoul_male)
-print(seoul_female)
-
 # reset index of each series
 total = seoul_total.reset_index(drop=True)
 male = seoul_male.reset_index(drop=True)
 female = seoul_female.reset_index(drop=True)
-print(total)
 
 # concatenate horizontally
 dfSeoulBirth = pd.concat([total, male, female], axis=1)
 dfSeoulBirth['year'] = range(2000, 2022)
-print(dfSeoulBirth)
 
 dfSeoulBirth.columns = ['SeoulTotal', 'SeoulMaleTotal', 'SeoulFemaleTotal', 'year']
 
-dfSeoulBirth = dfSeoulBirth.reindex(columns=['year', 'SeoulTotal', 'SeoulMaleTotal', 'SeoulFemaleTotal'])
+dfSeoulBirth = dfSeoulBirth.reindex(columns=['year', 'SeoulBirthTotal', 'SeoulBirthMale', 'SeoulBirthFemale'])
+
+# convert the "year" column to a string type
+dfSeoulBirth['year'] = dfSeoulBirth['year'].astype(str)
+
+# remove the "년" string from the "year" column
+dfSeoulBirth['year'] = dfSeoulBirth['year'].str.replace('년', '')
+
 print(dfSeoulBirth)
-
-
 '''
 
-
-
+'''
 ##################################################
 # open files
 
@@ -154,7 +177,6 @@ merged_df.loc[merged_df['학교명'] == '서울우면초등학교', '학교도�
 merged_df.loc[merged_df['학교명'] == '서울신남초등학교', '학교도로명 주소'] = '서울특별시 양천구 신월동 587'
 merged_df.loc[merged_df['학교명'] == '서울장평초등학교', '학교도로명 주소'] = '서울특별시 동대문구 답십리로69길 27'
 
-
 # NAVER Cloud info
 # Replace with your own Naver Cloud API client ID and secret key
 CLIENT_ID = ''
@@ -174,7 +196,6 @@ def get_coordinate(address):
     else:
         return None, None
 
-
 # Get the coordinates for each address using the get_coordinate function
 merged_df['longitude'], merged_df['latitude'] = zip(*merged_df['학교도로명 주소'].apply(get_coordinate))
 
@@ -185,9 +206,10 @@ merged_df['longitude'], merged_df['latitude'] = zip(*merged_df['학교도로명 
 file_path = os.path.join(base_path + '/engineered_data', 'merged_df_with_coordinates.csv')
 merged_df.to_csv(file_path, index=False, encoding='utf-8')
 # merged_df.to_csv('merged_df_with_coordinates.csv', index=False, encoding='cp949')
-
+'''
 
 ##################################################
+# elementary school 
 # read school district shp file
 
 file_name = "data/elementarySchooldistrict/초등학교통학구역.shp"
@@ -203,6 +225,8 @@ subset = shapefile_subset[shapefile_subset['EDU_UP_NM'] == "서울특별시교�
 
 ##################################################
 # merge shapefile with point data set(merged_df, or "merged_df_with_coordinates.csv")
+file_path = os.path.join(base_path + '/engineered_data', 'merged_df_with_coordinates.csv')
+merged_df = pd.read_csv(file_path, encoding='utf-8')
 merged_df_with_coordinates = merged_df
 
 # convert merged_df_with_coordinates to a GeoDataFrame
@@ -222,7 +246,6 @@ points = points.to_crs(polygons.crs)
 # perform spatial join
 joined = gpd.sjoin(points, polygons, op='within')
 
-
 ##################################################
 # plot points and polygon (simple overlay)
 
@@ -235,13 +258,13 @@ plt.show()
 
 
 # count the number of points for each polygon
-counts = joined.index.value_counts()
+counts = joined.groupby('index_right').size()
+print(counts)
 
-# select polygons with more than one point
-multi_point_polygons = counts[counts > 1].index.tolist()
-
-# print the list of polygons with more than one point
-print(multi_point_polygons)
+# print the number of points in each polygon
+for index, count in counts.items():
+    polygon_name = subsetMiddle.loc[index, 'HAKGUDO_NM']
+    print(f"Polygon '{polygon_name}' has {count} points.")
 
 
 ##################################################
@@ -267,7 +290,6 @@ joined_df = gpd.sjoin(map_df, gdf, how='inner', op='contains')
 # file_path = os.path.join(base_path + '/engineered_data', "elementarySchoolInfoForVisualization.geojson")
 # joined_df.to_file(file_path, driver='GeoJSON')
 
-##################################################
 # fill polygons using point info: using number of boys in the first grade
 
 fig, ax = plt.subplots(figsize=(10, 10))
@@ -308,7 +330,7 @@ for column in columns:
 
 # # save the figure as a PNG image
 # plt.savefig('map.png', dpi=300)
-'''
+
 
 ##################################################
 # open files
@@ -507,25 +529,7 @@ print(f"Total number of boys: {total_boys}")
 print(f"Total number of girls: {total_girls}")
 print(f"Boy ratio: {boy_ratio:.2f}")
 print(f"Girl ratio: {girl_ratio:.2f}")
-
-
-# ##################################################
-# number of birth and boy/girl ratio of korea
-data = {
-    'year': ['2010년', '2011년', '2012년', '2013년', '2014년',
-            '2015년', '2016년', '2017년', '2018년', '2019년', '2020년'],
-    'numberOfBirth': [470171, 471265, 484550, 436455, 435435,
-                   438420, 406243, 357771, 326822, 302676, 272337],
-    'boyGirlRatio': [106.9, 105.7, 105.7, 105.3, 105.3,
-                   105.3, 105.0, 106.3, 105.4, 105.5, 104.8]
-}
-
-korean_births_df = pd.DataFrame(data)
-print(korean_births_df)
-
-
-# ##################################################
-# number of birth and boy/girl ratio of Seoul
+'''
 
 
 # ##################################################
