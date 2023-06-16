@@ -34,7 +34,6 @@ if not os.path.exists(path_engineered_data):
    os.makedirs(path_engineered_data)
 
 
-'''
 # ##################################################
 # number of birth, boy/girl ratio of korea
 data = {
@@ -47,16 +46,19 @@ data = {
 }
 
 korean_births_df = pd.DataFrame(data)
-print(korean_births_df)
+# print(korean_births_df)
+file_path = os.path.join(base_path + '/engineered_data', 'korean_births_df.csv')
+korean_births_df.to_csv(file_path, index=False, encoding='utf-8')
 
-# korean_births_df['sKoreaBoy'] = korean_births_df['sKoreaBoyGirlRatio']/100 * korean_births_df['sKoreaBirthTotal']
-# print(korean_births_df['sKoreaBoy'])
+'''
+korean_births_df['sKoreaBoy'] = korean_births_df['sKoreaBoyGirlRatio']/100 * korean_births_df['sKoreaBirthTotal']
+print(korean_births_df['sKoreaBoy'])
 
-# korean_births_df['sKoreaBoyGirlRatio'] = [korean_births_df['sKoreaBoyGirlRatio']/(100 + korean_births_df['sKoreaBoyGirlRatio']) ] * 100
+korean_births_df['sKoreaBoyGirlRatio'] = [korean_births_df['sKoreaBoyGirlRatio']/(100 + korean_births_df['sKoreaBoyGirlRatio']) ] * 100
 korean_births_df['sKoreaBoyGirlRatio'] = (korean_births_df['numberOfBoys'] / korean_births_df['numberOfGirls']) * 100
 
 print(korean_births_df['sKoreaBoyGirlRatio'])
-
+'''
 
 ##################################################
 # open files: seoul birth data
@@ -104,7 +106,6 @@ df1.columns = ['bySeoulDistrict']
 df2 = df2.set_index(df1['bySeoulDistrict'])
 df2.loc['SeoulTotal'] = df2.sum(axis=0)
 
-
 total_cols = df2.filter(like='total').columns
 df2_total = df2[total_cols]
 seoul_total = df2.loc['SeoulTotal', total_cols]
@@ -124,11 +125,19 @@ female = seoul_female.reset_index(drop=True)
 
 # concatenate horizontally
 dfSeoulBirth = pd.concat([total, male, female], axis=1)
-dfSeoulBirth['year'] = range(2000, 2022)
 
+dfSeoulBirth['year'] = range(2000, 2022)
+print(dfSeoulBirth)
+
+file_path = os.path.join(base_path + '/engineered_data', 'dfSeoulBirth.csv')
+dfSeoulBirth.to_csv(file_path, index=False, encoding='utf-8')
+
+
+'''
 dfSeoulBirth.columns = ['SeoulTotal', 'SeoulMaleTotal', 'SeoulFemaleTotal', 'year']
 
 dfSeoulBirth = dfSeoulBirth.reindex(columns=['year', 'SeoulBirthTotal', 'SeoulBirthMale', 'SeoulBirthFemale'])
+print(dfSeoulBirth)
 
 # convert the "year" column to a string type
 dfSeoulBirth['year'] = dfSeoulBirth['year'].astype(str)
@@ -139,19 +148,91 @@ dfSeoulBirth['year'] = dfSeoulBirth['year'].str.replace('년', '')
 print(dfSeoulBirth)
 '''
 
-'''
 ##################################################
 # open files
 
-file_name = "data/elementarySchool/2022ElementarySchool.csv"
-file_path = os.path.join(base_path, file_name)
-ElementarySchoolStudentInfo2022 = pd.read_csv(file_path, encoding='utf-8')
-for col in ElementarySchoolStudentInfo2022 .columns:
-    print(col)
-# print(ElementarySchoolStudentInfo2022['시도교육청'].unique())
-ElementarySchoolStudentInfo2022_subset = ElementarySchoolStudentInfo2022[ElementarySchoolStudentInfo2022['시도교육청'].str.contains('서울특별시교육청')]
+def read_and_modify_data(file_name, original_columns, year):
+    file_path = os.path.join(base_path, file_name)
+    df = pd.read_csv(file_path, encoding='utf-8')
+    df_subset = df[df['시도교육청'].str.contains('서울특별시교육청')]
+
+    # generate boys/ratio info of each grade
+    grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
+
+    for grade in grades:
+        total_column = f"{grade}(합계)"
+        columns_to_sum = [f"{grade}(남)", f"{grade}(여)"]
+        df_subset[total_column] = df_subset[columns_to_sum].sum(axis=1)
+
+    grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
+    genders = ['남']
+
+    for grade in grades:
+        for gender in genders:
+            column_name = f"{grade}({gender})"
+            column_name_denominator = f"{grade}(합계)"
+            df_subset[column_name + '비율'] = df_subset[column_name] / df_subset[column_name_denominator] * 100
+
+    modified_columns = [column + year if column in original_columns else column for column in df_subset.columns]
+    df_subset.columns = modified_columns
+
+    return df_subset
+
+# Define original columns and year
+original_columns = ['1학년(남)', '1학년(여)', '2학년(남)', '2학년(여)', '3학년(남)', '3학년(여)',
+                    '4학년(남)', '4학년(여)', '5학년(남)', '5학년(여)', '6학년(남)', '6학년(여)',
+                    '특수학급(남)', '특수학급(여)', '순회학급(남)', '순회학급(여)', '계(남)', '계(여)', '총계',
+                    '1학년(합계)', '2학년(합계)', '3학년(합계)', '4학년(합계)', '5학년(합계)', '6학년(합계)',
+                    '1학년(남)비율', '2학년(남)비율', '3학년(남)비율', '4학년(남)비율', '5학년(남)비율', '6학년(남)비율']
+
+year2022 = '2022'
+year2021 = '2021'
+year2020 = '2020'
+
+# Read and modify 2022 data
+file_name2022 = "data/elementarySchool/2022ElementarySchool.csv"
+ElementarySchoolStudentInfo2022_subset = read_and_modify_data(file_name2022, original_columns, year2022)
+print(ElementarySchoolStudentInfo2022_subset.columns)
+
+# Read and modify 2021 data
+file_name2021 = "data/elementarySchool/2021ElementarySchool.csv"
+ElementarySchoolStudentInfo2021_subset = read_and_modify_data(file_name2021, original_columns, year2021)
+# print(ElementarySchoolStudentInfo2021_subset.columns)
+
+ElementarySchoolStudentInfo2021_subset_subset = \
+    ElementarySchoolStudentInfo2021_subset[['정보공시 학교코드', '1학년(남)2021', '1학년(여)2021', '2학년(남)2021', '2학년(여)2021',
+                                            '3학년(남)2021', '3학년(여)2021', '4학년(남)2021', '4학년(여)2021', '5학년(남)2021',
+                                            '5학년(여)2021', '6학년(남)2021', '6학년(여)2021', '특수학급(남)2021', '특수학급(여)2021',
+                                            '순회학급(남)2021', '순회학급(여)2021', '계(남)2021', '계(여)2021', '총계2021',
+                                            '1학년(합계)2021', '2학년(합계)2021', '3학년(합계)2021', '4학년(합계)2021',
+                                            '5학년(합계)2021', '6학년(합계)2021', '1학년(남)비율2021', '2학년(남)비율2021',
+                                            '3학년(남)비율2021', '4학년(남)비율2021', '5학년(남)비율2021', '6학년(남)비율2021']]
+# print(ElementarySchoolStudentInfo2021_subset_subset.head())
+
+# Read and modify 2020 data
+file_name2020 = "data/elementarySchool/2020ElementarySchool.csv"
+ElementarySchoolStudentInfo2020_subset = read_and_modify_data(file_name2020, original_columns, year2020)
+# print(ElementarySchoolStudentInfo2020_subset.head())
+
+ElementarySchoolStudentInfo2020_subset_subset = \
+    ElementarySchoolStudentInfo2020_subset[['정보공시 학교코드', '1학년(남)2020', '1학년(여)2020', '2학년(남)2020', '2학년(여)2020',
+                                            '3학년(남)2020', '3학년(여)2020', '4학년(남)2020', '4학년(여)2020', '5학년(남)2020',
+                                            '5학년(여)2020', '6학년(남)2020', '6학년(여)2020', '특수학급(남)2020', '특수학급(여)2020',
+                                            '순회학급(남)2020', '순회학급(여)2020', '계(남)2020', '계(여)2020', '총계2020',
+                                            '1학년(합계)2020', '2학년(합계)2020', '3학년(합계)2020', '4학년(합계)2020',
+                                            '5학년(합계)2020', '6학년(합계)2020', '1학년(남)비율2020', '2학년(남)비율2020',
+                                            '3학년(남)비율2020', '4학년(남)비율2020', '5학년(남)비율2020', '6학년(남)비율2020']]
+
+# print(ElementarySchoolStudentInfo2020_subset_subset.head())
+
+merged_df = ElementarySchoolStudentInfo2022_subset.merge(ElementarySchoolStudentInfo2021_subset_subset, on='정보공시 학교코드', how='inner')
+ElementarySchoolStudent2020to2022 = merged_df.merge(ElementarySchoolStudentInfo2020_subset_subset, on='정보공시 학교코드', how='inner')
+# print(ElementarySchoolStudent2020to2022.head())
+# print(len(ElementarySchoolStudent2020to2022))
 
 
+##################################################
+# open school info
 file_name = "data/elementarySchool/2022년도_학교기본정보(초등).csv"
 file_path = os.path.join(base_path, file_name)
 ElementarySchoolInfo2022 = pd.read_csv(file_name, encoding='utf-8')
@@ -161,13 +242,53 @@ ElementarySchoolInfo2022_subset = ElementarySchoolInfo2022[ElementarySchoolInfo2
 ##################################################
 # merge two data sets
 
-merged_df = pd.merge(ElementarySchoolStudentInfo2022_subset, ElementarySchoolInfo2022_subset, on='정보공시 학교코드', how='inner', indicator=True, suffixes=('', '_new'))
-merged_df = merged_df[merged_df.columns.drop(list(merged_df.filter(regex='_new')))]
+ElementarySchool2020to2022 = pd.merge(ElementarySchoolStudent2020to2022, ElementarySchoolInfo2022_subset, on='정보공시 학교코드', how='inner', indicator=True, suffixes=('', '_new'))
+ElementarySchool2020to2022 = ElementarySchool2020to2022[ElementarySchool2020to2022.columns.drop(list(ElementarySchool2020to2022.filter(regex='_new')))]
+print(len(ElementarySchool2020to2022))
+# print(ElementarySchool2020to2022.columns)
+columns = ElementarySchool2020to2022.columns
+# for col in columns:
+#     print(col)
+file_path = os.path.join(base_path + '/engineered_data', 'ElementarySchool2020to2022.csv')
+ElementarySchool2020to2022.to_csv(file_path, index=False, encoding='utf-8')
+
+ElementarySchool2020to2022 = ElementarySchool2020to2022.drop(columns=[
+    '제외여부', '제외사유', '개교기념일', '설립일', '주소내역', '상세주소내역', '우편번호',
+    '학교도로명 우편번호', '학교도로명 주소', '학교도로명 상세주소', '전화번호', '팩스번호',
+    '홈페이지 주소', '_merge'])
+
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울등양초등학교', '학교도로명 주소'] = '서울특별시 강서구 강서로56나길 140'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울미아초등학교', '학교도로명 주소'] = '서울특별시 성북구 삼양로 77'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울언주초등학교', '학교도로명 주소'] = '서울특별시 강남구 남부순환로363길 19'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울수서초등학교', '학교도로명 주소'] = '서울특별시 강남구 광평로51길 46'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울우면초등학교', '학교도로명 주소'] = '서울특별시 서초구 태봉로 59'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울신남초등학교', '학교도로명 주소'] = '서울특별시 양천구 신월동 587'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울장평초등학교', '학교도로명 주소'] = '서울특별시 동대문구 답십리로69길 27'
+
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울등양초등학교', '위도'] = '37.5648029'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울등양초등학교', '경도'] = '126.8446617'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울미아초등학교', '위도'] = '37.6105142'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울미아초등학교', '경도'] = '127.0215272'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울언주초등학교', '위도'] = '37.4866567'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울언주초등학교', '경도'] = '127.0371605'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울수서초등학교', '위도'] = '37.4909352'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울수서초등학교', '경도'] = '127.1014041'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울우면초등학교', '위도'] = '37.4645759'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울우면초등학교', '경도'] = '127.0237457'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울신남초등학교', '위도'] = '37.515872'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울신남초등학교', '경도'] = '126.844706'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울장평초등학교', '위도'] = '37.5737339'
+ElementarySchool2020to2022.loc[ElementarySchool2020to2022['학교명'] == '서울장평초등학교', '경도'] = '127.0733105'
+
+ElementarySchool2020to2022 = ElementarySchool2020to2022.rename(columns={'위도': 'latitude', '경도': 'longitude'})
+
+file_path = os.path.join(base_path + '/engineered_data', 'ElementarySchool2020to2022.csv')
+ElementarySchool2020to2022.to_csv(file_path, index=False, encoding='utf-8')
 
 
+'''
 ##################################################
 # add coordinate info
-
 # correct the incorrect addresses
 merged_df.loc[merged_df['학교명'] == '서울등양초등학교', '학교도로명 주소'] = '서울특별시 강서구 강서로56나길 140'
 merged_df.loc[merged_df['학교명'] == '서울미아초등학교', '학교도로명 주소'] = '서울특별시 성북구 삼양로 77'
@@ -208,10 +329,10 @@ merged_df.to_csv(file_path, index=False, encoding='utf-8')
 # merged_df.to_csv('merged_df_with_coordinates.csv', index=False, encoding='cp949')
 '''
 
+
 ##################################################
 # elementary school 
 # read school district shp file
-
 file_name = "data/elementarySchooldistrict/초등학교통학구역.shp"
 file_path = os.path.join(base_path, file_name)
 shapefile = gpd.read_file(file_path)
@@ -220,32 +341,51 @@ shapefile = gpd.read_file(file_path)
 columns_to_drop = ['CRE_DT', 'UPD_DT', 'BASE_DT']
 shapefile_subset = shapefile.drop(columns_to_drop, axis=1)
 print(shapefile_subset.columns)
-subset = shapefile_subset[shapefile_subset['EDU_UP_NM'] == "서울특별시교육청"]
+elementarySchoolDistrictSeoul = shapefile_subset[shapefile_subset['EDU_UP_NM'] == "서울특별시교육청"]
+
+
+# read school district shp file
+
+file_name = "data/middleSchoolDistrict/중학교학교군.shp"
+file_path = os.path.join(base_path, file_name)
+shapefile = gpd.read_file(file_path)
+# print(shapefile.columns)
+
+columns_to_drop = ['CRE_DT', 'UPD_DT', 'BASE_DT']
+shapefile_subset = shapefile.drop(columns_to_drop, axis=1)
+print(shapefile_subset.columns)
+middleSchoolDistrictSeoul = shapefile_subset[shapefile_subset['EDU_UP_NM'] == "서울특별시교육청"]
 
 
 ##################################################
-# merge shapefile with point data set(merged_df, or "merged_df_with_coordinates.csv")
-file_path = os.path.join(base_path + '/engineered_data', 'merged_df_with_coordinates.csv')
-merged_df = pd.read_csv(file_path, encoding='utf-8')
-merged_df_with_coordinates = merged_df
+'''
+file_path = os.path.join(base_path + '/engineered_data', 'ElementarySchool2020to2022.csv')
+ElementarySchool2020to2022 = pd.read_csv(file_path, encoding='utf-8')
+ElementarySchool2020to2022['학교명'].to_csv(file_path, index=False, encoding='utf-8')
+'''
 
 # convert merged_df_with_coordinates to a GeoDataFrame
-points = gpd.GeoDataFrame(merged_df_with_coordinates,
-                          geometry=gpd.points_from_xy(merged_df_with_coordinates.longitude,
-                                                      merged_df_with_coordinates.latitude))
+points = gpd.GeoDataFrame(ElementarySchool2020to2022,
+                          geometry=gpd.points_from_xy(ElementarySchool2020to2022.longitude,
+                                                      ElementarySchool2020to2022.latitude))
 
 # infer CRS from latitude and longitude columns using pyproj
 points.crs = CRS.from_user_input('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs').to_wkt()
 
 # convert subset to a GeoDataFrame
-polygons = gpd.GeoDataFrame(subset)
+polygons = gpd.GeoDataFrame(elementarySchoolDistrictSeoul)
 
 # reproject points to match the CRS of polygons
 points = points.to_crs(polygons.crs)
 
 # perform spatial join
 joined = gpd.sjoin(points, polygons, op='within')
+print(len(joined))
+# file_path = os.path.join(base_path + '/engineered_data', 'elementarySchoolName(joined).csv')
+# joined['학교명'].to_csv(file_path, index=False, encoding='utf-8')
+print(joined.columns)
 
+'''
 ##################################################
 # plot points and polygon (simple overlay)
 
@@ -255,16 +395,18 @@ polygons.plot(ax=ax, alpha=0.5, edgecolor='black')
 joined.plot(ax=ax, color='red', markersize=5)
 
 plt.show()
+'''
 
-
+'''
 # count the number of points for each polygon
 counts = joined.groupby('index_right').size()
 print(counts)
 
 # print the number of points in each polygon
 for index, count in counts.items():
-    polygon_name = subsetMiddle.loc[index, 'HAKGUDO_NM']
+    polygon_name = middleSchoolDistrictSeoul.loc[index, 'HAKGUDO_NM']
     print(f"Polygon '{polygon_name}' has {count} points.")
+'''
 
 
 ##################################################
@@ -279,8 +421,13 @@ new_crs = polygons.crs
 gdf = points.to_crs(new_crs)
 
 # spatial join using subset(shape file of school district)
-map_df = subset
-joined_df = gpd.sjoin(map_df, gdf, how='inner', op='contains')
+map_df = elementarySchoolDistrictSeoul
+elementarySchool2020to2022WithGeoInfo = gpd.sjoin(map_df, gdf, how='inner', op='contains')
+# print(elementarySchool2020to2022WithGeoInfo.head())
+
+elementarySchool2020to2022WithGeoInfo = elementarySchool2020to2022WithGeoInfo.drop(columns=[
+    '학교특성', '분교여부', '학교도로명 주소'])
+
 
 # save as shp file
 # file_path = os.path.join(base_path + '/engineered_data', 'elementarySchoolGenderSorting.shp')
@@ -293,31 +440,11 @@ joined_df = gpd.sjoin(map_df, gdf, how='inner', op='contains')
 # fill polygons using point info: using number of boys in the first grade
 
 fig, ax = plt.subplots(figsize=(10, 10))
-joined_df.plot(column='1학년(남)', cmap='Blues', ax=ax, legend=True)
+elementarySchool2020to2022WithGeoInfo.plot(column='1학년(남)2022', cmap='Blues', ax=ax, legend=True)
 plt.show()
 
-
-# generate boys/ratio info of each grade
-grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
-
-for grade in grades:
-    total_column = f"{grade}(합계)"
-    columns_to_sum = [f"{grade}(남)", f"{grade}(여)"]
-    joined_df[total_column] = joined_df[columns_to_sum].sum(axis=1)
-
-grades = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년']
-genders = ['남']
-
-for grade in grades:
-    for gender in genders:
-        column_name = f"{grade}({gender})"
-        column_name_denominator = f"{grade}(합계)"
-        joined_df[column_name + '비율'] = joined_df[column_name]/joined_df[column_name_denominator]
-
-columns = joined_df.columns
-for column in columns:
-  print(column)
-
+file_path = os.path.join(base_path + '/engineered_data', 'elementarySchool2020to2022WithGeoInfo.csv')
+elementarySchool2020to2022WithGeoInfo.to_csv(file_path, index=False, encoding='utf-8')
 
 # # plot boys ratio
 # fig, ax = plt.subplots(figsize=(10, 10))
@@ -490,7 +617,8 @@ joined_df = joined_df.rename(columns=columns_mapping)
 # Compute the total number of students by school and gender
 # total_students = joined_df.groupby(['school_code']).sum()[['total_male', 'total_female']]
 total_students = joined_df.groupby(['school_code']).sum(numeric_only=True)[['total_male', 'total_female']]
-
+print(total_students)
+print(len(total_students))
 
 # Compute the average number of students by grade and gender
 grades = ['1st_grade_male', '2nd_grade_male', '3rd_grade_male', '4th_grade_male', '5th_grade_male', '6th_grade_male']
@@ -520,6 +648,9 @@ print('Correlation matrix between the number of boys and girls in each grade:\n'
 
 
 total_students = joined_df[['total_male', 'total_female']].sum().sum()
+
+print(total_students)
+
 total_boys = joined_df['total_male'].sum()
 total_girls = total_students - total_boys
 boy_ratio = total_boys / total_students
@@ -529,9 +660,9 @@ print(f"Total number of boys: {total_boys}")
 print(f"Total number of girls: {total_girls}")
 print(f"Boy ratio: {boy_ratio:.2f}")
 print(f"Girl ratio: {girl_ratio:.2f}")
+
+
 '''
-
-
 # ##################################################
 # # # plot points and polygon (simple overlay)
 # # fig, ax = plt.subplots(figsize=(10,10))
@@ -651,3 +782,28 @@ print(f"Girl ratio: {girl_ratio:.2f}")
 # # # Adjust spacing between subplots and add a title to the big plot
 # # fig.tight_layout()
 # # fig.suptitle('Histograms by Grade')
+'''
+
+
+##################################################
+# open files
+
+file_name = "data/elementarySchool/2021ElementarySchool.csv"
+file_path = os.path.join(base_path, file_name)
+ElementarySchoolStudentInfo2021 = pd.read_csv(file_path, encoding='utf-8')
+# for col in ElementarySchoolStudentInfo2021 .columns:
+#     print(col)
+
+ElementarySchoolStudentInfo2021_subset = ElementarySchoolStudentInfo2021[ElementarySchoolStudentInfo2021['시도교육청'].str.contains('서울특별시교육청')]
+
+# print(len(ElementarySchoolStudentInfo2022_subset))
+
+original_columns  = ['1학년(남)', '1학년(여)', '2학년(남)', '2학년(여)', '3학년(남)', '3학년(여)', '4학년(남)', '4학년(여)', '5학년(남)', '5학년(여)', '6학년(남)', '6학년(여)', '특수학급(남)', '특수학급(여)', '순회학급(남)', '순회학급(여)', '계(남)', '계(여)', '총계']
+modified_columns = [column + '2021' if column in original_columns else column for column in ElementarySchoolStudentInfo2021_subset.columns]
+
+# Update the column names in the DataFrame
+ElementarySchoolStudentInfo2021_subset.columns = modified_columns
+
+# Display the updated DataFrame
+print(ElementarySchoolStudentInfo2021_subset.columns)
+
